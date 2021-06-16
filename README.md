@@ -18,10 +18,9 @@ correct environment.
 Before the workshop, you should have the following installed:
 
 * jq
-* ghc-9.2
-* cabal-3.6
-* eventlog2html
-* ghc-debug
+* ghc-9.2 (https://downloads.haskell.org/~ghc/9.2.1-alpha2/)
+* cabal-3.6 (https://github.com/haskell/cabal/tree/3.6)
+* eventlog2html-0.9 (`cabal install eventlog2html-0.9`)
 
 Or, alternatively, use this `nix` invocation to set-up the environment.
 
@@ -363,6 +362,10 @@ If a trace matches both an -i and an -x option then it is included in the chart.
 
 ## Summary
 
+Now we understand how to create and interpret a heap profile using a combination
+of the eventlog and eventlog2html. This provides a high-level overview of
+your programs memory usage.
+
 ### Exercise: Profiling an application
 
 We have prepared a simple server application which might have some memory issues
@@ -386,9 +389,6 @@ There are three scripts to interact with the example application.
 ```
 
 The exercise is to profile the application. Keep reading if you need more help!
-
-
-
 
 
 ### Troubleshooting
@@ -436,34 +436,279 @@ the eventlog at a certain interval in seconds.
 
 # Part 3a: Using ghc-debug on a bigger application
 
-We are going to use ghc-debug to investigate the memory leaks in the sample
-application which we ran before.
+ghc-debug is best suited for precise analysis of memory usage once you have
+formulated a precise question to ask. The normal way to use ghc-debug is
+to write a little debugger script using the library functions which summarises
+the heap in a domain-specific way.
 
-* Use ghc-debug to pause the application
 
-* How to write a debugging script
+## Instrumenting an application for ghc-debug
 
-What else can ghc-debug analyse out of the box?
+Instrumenting an application so it be controlled by a debugger is easy.
+The `GHC.Debug.Stub` module exports the `withGhcDebug` wrapper which opens
+the socket.
 
-* Fragmentation issues
-* Duplicate heap objects
-* Thunk census
+```
+import GHC.Debug.Stub
 
-## Two-level profile
+-- withGhcDebug :: IO a -> IO a
+
+main = withGhcDebug $ do ...
+```
+
+Now when the application is started, a socket will be opened which can be connected
+to by a debugger.
+
+NOTE: The `GHC_DEBUG_SOCKET` variable controls the socket which the debuggee
+creates the socket on.
+
+## Writing a Debugger
+
+A debugger is a Haskell program which connects to the socket and then takes
+control of the program. Once in control of a program, there are a number of
+requests which can be issued in order to learn information about the heap. Together
+they can be used to perform a complete heap traversal.
+
+There is a simple debugger in `debugger/`.
+
+```
+{-# LANGUAGE TupleSections #-}
+module Main where
+
+import GHC.Debug.Client
+import GHC.Debug.Count
+
+main :: IO ()
+main = withDebuggeeConnect "/tmp/ghc-debug" prog
+
+prog :: Debuggee -> IO ()
+prog e = do
+  pause e
+  res <- run e $ do
+    rs <- gcRoots
+    count rs
+  resume e
+  print res
+```
+
+The debugger starts by connecting to the socket which is located at `/tmp/ghc-debug`.
+Once connected, the program `prog` is executed. This program traverses the whole
+heap and reports how many closures there are live on the heap.
+
+1. The program starts by `pause`ing the application
+2. Once the application is paused, we can start issuing requests to the program.
+   First the `gcRoots :: DebugM [ClosurePtr]` are requested.
+3. The `count :: [ClosurePtr] -> DebugM CensusStats` function is a built-in traversal which counts the number and size of
+   reachable closures.
+4. The `run :: Debuggee -> DebugM a -> IO a` function executates the analysis.
+5. The analysed program is then resumed `resume :: Debuggee -> IO ()`.
+6. Before finally the result of the census is printed.
+
+The debugger can be run with:
+
+```
+cabal run debugger
+```
+
+### Haskell Representation
+
+Closures are represented as a Haskell data type called [`DebugClosure`](https://hackage.haskell.org/package/ghc-debug-common-0.1.0.0/docs/GHC-Debug-Types-Closures.html#t:DebugClosure).
+There's a constructor for each of the different closure types, traversals of
+the heap can be written as normal Haskell functions in terms of the `DebugClosure`
+data type!
+
+### Analysis Scripts
+
+Documentation for some common analysis modes is in [ghc-debug-client](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0)
+
+| Module  | Description |
+| ------------- | ------------- |
+| [GHC.Debug.GML](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-GML.html)  | Export a heap graph to the GML format for further analysis. |
+| [GHC.Debug.ObjectEquiv](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-ObjectEquiv.html)  |  Attempt to find identical closures which could be shared to save space  |
+| [GHC.Debug.Profile](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Profile.html)  |  Functions for performing whole heap census in the style of the normal -hT heap profiling |
+| [GHC.Debug.Retainers](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Retainers.html)  |  Functions for finding out what is retaining a specific closure |
+| [GHC.Debug.Snapshot](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Snapshot.html) | Create a snapshot so analysis can be performed without a running process |
+| [GHC.Debug.TypePointsFrom](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-TypePointsFrom.html) | Create a "type points from" census in the style of [Cork](https://dl.acm.org/doi/10.1145/1190216.1190224) |
 
 ## Finding Retainers
 
-The killer application of ghc-debug is finding out what is retaining
+The killer application of ghc-debug is finding out what is retaining specific closures.
+For example, using ghc-debug you can answer questions such as what is the precise
+path from a GC root to a certain closure. This information is usually very informative and by
+reading the path you can understand why something is being retained very easily.
 
-For this there is a built-in function which finds paths from the GC roots to
-closures which match a certain predicate.
+As with most analysis modes in ghc-debug, there is a familar pattern to the analysis.
+
+1. Pause the program
+2. Traverse the heap to find the information which you care about
+3. Unpause the program
+4. Render the information to the user.
+
+Here is a sample analysis script for finding retainers of a constructor called
+"Foo":
+
+```
+retainers :: Debuggee -> IO ()
+retainers e = do
+  pause e
+  res <- run e $ do
+    roots <- gcRoots
+    rs <- tyConApp roots
+    traverse (\c -> (show (head c),) <$> (addLocationToStack c)) rs
+  resume e
+  displayRetainerStack res
+
+tyConApp :: [ClosurePtr] -> DebugM [[ClosurePtr]]
+tyConApp rroots = findRetainers (Just 100) rroots go
+  where
+    go cp sc =
+      case noSize sc of
+        ConstrClosure _ ps _ cd -> do
+          ConstrDesc _ _  cname <- dereferenceConDesc cd
+          return $ cname == "TyConApp"
+        _ -> return $ False
+```
+
+The script follows the same structure as the previous ghc-debug program. Now instead
+of calling `count` the `tyConApp` function calls the library function `findRetainers`.
+
+```
+findRetainers :: Maybe Int
+              -> [ClosurePtr]
+              -> (ClosurePtr -> SizedClosure -> DebugM Bool)
+              -> DebugM [[ClosurePtr]]
+```
+
+`findRetainers` starts traversing the heap from the given set of roots. At each
+closure it encounters the predicate function is applied, if the predicate is
+true then the path to that closure is returned.
+When also passed a limit, the function will stop after finding |k|
+closures matching the predicate.
+
+
+The `go` function is the predicate function which is applied  on each closure on the heap.
+It checks to see if the closure in question is a constructor closure and whether the
+name of the constructor matches `Foo`.
+
+Once the retainer stack is returned, it's useful to first call the `addLocationToStack`
+function, which annotates the stack with source locations, the annotated stack can then
+be printed by the `displayRetainerStack` function.
+
+```
+addLocationToStack :: [ClosurePtr] -> DebugM [(SizedClosureC, Maybe SourceInformation)]
+displayRetainerStack :: [(String, [(SizedClosureC, Maybe SourceInformation)])] -> IO ()
+```
+
+The output of this function leaves a little to be desired but contains a wealth of
+information.
+
+```
+"0x4225a44120"
+TyConApp 0x42884b6260 0x4225a44a68 <:GHC.Core.TyCo.Rep:compiler/GHC/Core/TyCo/Rep.hs:1029:20-22>
+Id 0x4241352d58 0x4225a44120 0x7fa762bf06c0 0x7fa764861480 0x7fa76478eeb0 0x420ea9f9e8 6341068275337658638 <:GHC.Core.Opt.Simplify:compiler/GHC/Core/Opt/Simplify.hs:(781,9)-(793,67)>
+Tip 0x420ea9fa38 6341068275337658638 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:838:27>
+Bin 0x422606d488 0x420eaa0328 6341068275337658368 256 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:835:21-44>
+Bin 0x422606d4a0 0x422607ea10 4611686018427387904 2305843009213693952 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:836:21-44>
+Bin 0x4283d20530 0x422607ea38 0 4611686018427387904 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:836:21-44>
+_bh 0x422607ea60 <nl>
+SimplEnv 0x42130cabd0 0x7fa7505d5ae8 0x7fa7505d5ae8 0x422607d550 0x422607d530 <:GHC.Core.Opt.Simplify.Env:compiler/GHC/Core/Opt/Simplify/Env.hs:(806,1)-(829,41)>
+_thunk(  ) 0x422607d578 0x422607e4b0 <Unfolding:GHC.Core.Opt.Simplify:compiler/GHC/Core/Opt/Simplify.hs:3004:14-48>
+IdInfo 0x7fa764790090 0x422607e6b0 0x7fa764713410 0x7fa76470e360 0x7fa764744068 0x7fa764741618 0x7fa764744930 0x7fa74f112478 0 <:GHC.Core.Opt.Simplify:compiler/GHC/Core/Opt/Simplify.hs:3005:54-64>
+Id 0x4234a4e600 0x4234a4e5a8 0x7fa762bf06c0 0x7fa764861480 0x7fa76478eeb0 0x422607e850 6341068275337658369 <:GHC.Core.Opt.Simplify:compiler/GHC/Core/Opt/Simplify.hs:3005:44-52>
+Tip 0x422607e8a0 6341068275337658369 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:838:27>
+Bin 0x422607ea88 0x42647b2700 6341068275337658368 256 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:836:21-44>
+Bin 0x42647b2728 0x4283091b58 4611686018427387904 2305843009213693952 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:836:21-44>
+Bin 0x4283d20530 0x4283091b80 0 4611686018427387904 <:Data.IntMap.Internal:libraries/containers/containers/src/Data/IntMap/Internal.hs:836:21-44>
+_bh 0x4283091ba8 <nl>
+_thunk(  ) 0x42830912e8 0x4283091368 <InScopeSet:GHC.Types.Var.Env:compiler/GHC/Types/Var/Env.hs:(318,6)-(320,55)>
+Stack( 4093 ) <nl>
+TSO <nl>
+TSO <nl>
+```
+
+What you can learn from a stack, depends on the stack and also your own domain
+knowledge of a program. This above stack explains that a `THUNK` which has type
+`InScopeSet` retains an `IntMap` which contains `Id`s and in one of those `Id`s, there
+is an `IdInfo` field which has thunk of type Unfolding which retains a … and so
+on. This information can be verbose but very useful. You need to look at the
+source positions and program in order to understand what is going on and
+whether it is good or bad. Randomly forcing thunks is likely to get you
+nowhere. We didn’t write ghc-debug to get people to randomly insert ! patterns
+- you can now be precise.
+
+# Exercise: Using ghc-debug on the example application
+
+First we'll just get things set-up, instrument the application and test it with
+the example debugger script.
+
+1. Instrument the application using the `withGhcDebug` function.
+2. Start the server and connect with the example debugger (`cabal run debugger`)
+
+Now it's time to get serious. Look at the profile created by eventlog2html? What
+is leaking in the profile? Use the `findRetainers` function to work out what's
+retaining the leak.
+
+3. Modify the debugger to use `findRetainers`.
+4. Run the debugger again, can you fix the leak?
+5. Check with eventlog2html that the leak is actually fixed.
+
+The profile should be quite flat if you have fixed the leak correctly.
+
+# Extension: Snapshots
+
+There are two modes which ghc-debug can be used. The first mode connects to a
+running process over a socket and then queries information from the heap of the
+process over the socket.
+The second mode uses a saved snapshot, created after connecting to the process
+using the first mode, which allows analysis to be completed without connecting
+to the process.
+
+The same analysis programs can be used in both modes, if you are using snapshot
+mode then write requests such as pausing and resuming are just ignored.
+
+There are two advantages of taking a snapshot:
+
+1. Your analysis is reproducible across separate runs.
+2. Performance can be much faster.
+
+The recommended way to use ghc-debug is to take a snapshot by connecting to
+the process and then performing further analysis on the snapshot.
+
+## Taking Snapshots
+
+Functions to do with snapshotting can be found in `GHC.Debug.Snapshot`.
+The easiest way to take a snapshot is to use the precanned `makeSnapshot` function.
+
+```
+main = withDebuggeeConnect "/tmp/ghc-debug" (\e -> makeSnapshot e "/tmp/ghc-debug-cache)
+```
+
+When this program runs, it will connect to the `/tmp/ghc-debug` socket and save
+the snapshot to `/tmp/ghc-debug-cache`. Simple.
+
+## Using Snapshots
+
+A `Debuggee` can be created from a snapshot by using the `snapshotRun` function.
+
+```
+main = snapshotRun "/tmp/ghc-debug-cache" p41c
+```
+
+The `/tmp/ghc-debug-cache` snapshot which we just saved will be loaded and
+the `p41c` program will be executed on the snapshot.
+
+## Size of Snapshots
+
+Snapshots are quite large but only a small order of magnitude larger than the
+approximate memory footprint of the program. The size is bloated a bit at the moment
+as even unreachable blocks are included in the snapshot.
+In future the size of snapshots might be optimised to only include reachable blocks.
+
+
 
 # Part 3b: Using ghc-debug/eventlog2html on your own application
 
 In this section you can do what you want and are welcome to try ghc-debug or eventlog2html on
 your own application where we can help you debug any issues.
-
-
-
 
 
