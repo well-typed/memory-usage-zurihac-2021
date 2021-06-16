@@ -235,7 +235,33 @@ The profile can be viewed by opening the [resulting file]().
 
 #### Interpreting the profile
 
-The default view of the profile shows the 10 biggest
+The default view of the profile shows the 10 bands with the largest total area.
+This highlights bands which have had consistently high memory usage throughout
+the program. There are 4 panes which display the heap profile in slightly different
+ways.
+
+##### Area Chart
+
+The area chart is the normal way to view a chart. The x-axis shows elapsed time
+and y-axis shows residency. Each band is stacked on top of the others, by default
+the top 15 bands are showed explicitly and the rest of samples grouped into other.
+
+<screenshot>
+
+This view is very similar to the view provided by `hp2ps` and `hp2pretty`.
+
+##### Linechart
+
+The linechart view shows normalised residency over time. Each residency band
+is normalised to a percentage of the maximum value for that band. Therefore a value
+of 1 indicates that at that time point, the residency of that band was the most
+throughout the whole profile run.
+
+<screenshot>
+
+This view can help pick out slowly increasing bands from the noise of bands
+which fluctuate a lot over time. A band which is slowly increasing is indicative
+of a leak and requires further investigation.
 
 
 #### The detailed pane
@@ -289,23 +315,6 @@ band further down the profile for `ByteString` or another wrapper type.
 Another trick is to sort by the "slope" column to find bands which have high slope
 value, these ones are bands which increase steadily over time and might indicate leaks.
 
-The detailed pane is useful for several reasons.
-
-1. You can easily identify each band of residency and consider it in turn.
-2. You can see sources of residency which are too small to appear
-3. You can search the bands to find specific sources of interest. For example,
-   the allocations from a certain constructor.
-4. Patterns between different bands can be identified by eye.
-
-Something I regularly do is go to the detailed pane, and click through each
-page looking to see if there are common patterns. Once getting to the smaller bands
-this can be particularlly useful because small bands are often not polluted to
-the same extent as large bands. For example, your profile might contain contribution
-of ARR_WORDS from many different sources but there's likely to be a correlated
-band further down the profile for `ByteString` or another wrapper type.
-
-** The root cause of memory issues is not usually the biggest band in the profile **
-
 #### The heap pane
 
 The heap pane shows information about memory
@@ -320,6 +329,94 @@ is approximatey the difference between the red and blue lines.
 This view can also be useful in identifying back fragmentation situations. A
 very badly fragmented heap will have low live bytes (green) bit much higher
 blocks size (red line).
+
+
+### Adding markers
+
+Markers can also be emitted to the eventlog to mark specific points in the program.
+These markers will also be rendered on the profile so execution time can be
+correlated with human understandable events.
+
+```
+import Debug.Trace
+
+traceMarkerIO :: String -> IO ()
+```
+
+Some applications (such as `ghc -ddump-timings`) produce a large number of
+markers so it's necessary to filter the markers before displaying them on
+the profile or the output is unreadable.
+
+
+#### Filtering markers
+
+There are a few options
+
+There are three options for controlling the display of traces on the chart.
+
+    --no-traces will remove all traces from the chart.
+    -i SUBSTRING will keep traces which contain the given substring.
+    -x SUBSTRING will remove traces which contain a given substring.
+
+If a trace matches both an -i and an -x option then it is included in the chart.
+
+
+## Summary
+
+### Exercise: Profiling an application
+
+We have prepared a simple server application which might have some memory issues
+to investigate with eventlog2html and ghc-debug. The application is in the
+`haskell-scotty-realworld-example-app` directory. The application is an implementation
+of the [realworld example application](https://github.com/gothinkster/realworld), it's
+a simple medium.com clone which has endpoints for registering users, creating articles
+and writing comments.
+
+There are three scripts to interact with the example application.
+
+```
+# Start the docker container for postgres
+./start_postgres
+
+# Start the server (a wrapper around cabal run)
+./run_server
+
+# Issue dummy requests which creates 1000 articles
+./run
+```
+
+The exercise is to profile the application. Keep reading if you need more help!
+
+
+
+
+
+### Troubleshooting
+
+Q: How do I enable profiling?
+
+1. Add `-eventlog` to the `ghc-options` of the cabal file
+2. Modify the `./run_server` script to pass the relevant profiling options.
+3. Run the server, the eventlog will be produced at `realworld.eventlog`
+4. Visualise the eventlog with `eventlog2html`, what do you see?
+
+Q: Passing options to an executable with `cabal run`
+
+Options can be passed to an executable invoked by `cabal run` by specifying the
+arguments after `--`.
+
+```
+cabal run exe -- args for exe here
+```
+
+Q: Why is my profile truncated.
+
+The eventlog output is buffered, stop the server before rendering the profile.
+There is also a new option `--eventlog-flush-interval=1`, which can be used to flush
+the eventlog at a certain interval in seconds.
+
+
+
 
 
 

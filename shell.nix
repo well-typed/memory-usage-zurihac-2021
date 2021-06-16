@@ -52,12 +52,20 @@ let
           hash = "0wlfj88w2xyklj8w5mp5n8xq48fdlq17ywds8hyqxywy17k89m4v";
         };
 
+  eventlog2html = import (np.fetchFromGitHub {
+    owner = "mpickering";
+    repo = "eventlog2html";
+    rev = "0.9.0";
+    sha256 = "1y24md2x4zs1vjahfljgfyvxhpk097s1mjddha4rpcf99f0djd93";
+  }) {};
+
+
+
 
 in
   np2.mkShell { buildInputs = [
                                ghc
                                fixedCabal
-                               np.linuxPackages.perf
                                np2.ncurses
                                np.wget  # Used by cabal-install for https support when communicating with head.hackage
                                np2.zlib.dev
@@ -67,6 +75,7 @@ in
                                np2.numactl
                                np2.pkg-config
                                np2.graphviz
+                               eventlog2html.eventlog2html
 
                                np2.gmp
                                np2.gmp.dev
