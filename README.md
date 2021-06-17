@@ -72,6 +72,18 @@ memory usage. It's normally useful to start by asking high-level questions:
   for a high percentage of residency?
 * Are there any obvious memory usage spikes visible in the profile?
 
+These are questions that tools like `eventlog2html` can answer.
+
+After asking a high-level question, and getting an idea where the problem is,
+you can start asking low-level questions in order to properly
+
+* What is retaining a specific part of memory which is leaking?
+* What's the structure of the objects which are contributing a lot to residency?
+* How does the memory usage differ between these two points in my program?
+* What source position contributes the most to allocation in the program?
+
+These low-level questions are ones which are hard to answer with `eventlog2html`
+but easy to answer with `ghc-debug`. A mastery of both tools can lead to enlightenment.
 
 # Part 1a: Getting going with ghc-debug
 
