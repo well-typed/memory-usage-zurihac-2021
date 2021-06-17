@@ -126,7 +126,7 @@ represented on the heap.
 The examples are in `simple/app/Main.hs`. In one terminal run:
 
 ```
-cabal run simple
+> cabal run simple
 Enter a number:
 100
 Pausing for interruption by ghc-debug
@@ -136,7 +136,7 @@ And then in another terminal you can launch the tui to inspect the heap of the
 running program.
 
 ```
-cabal run tui
+> cabal run tui
 ```
 
 When the TUI starts, the dialog will list the sockets which it has found by looking
@@ -151,7 +151,7 @@ in a list.
 
 ![](assets/ghc-debug-tui-saved.png)
 
-At the top of the list you can see the 5 saved objects from the examples.
+At the top of the list you can see the saved objects from the examples.
 Hovering over the first object you can see the source position the thunk arose
 from.
 
@@ -206,12 +206,12 @@ profiling modes you just pass `+RTS -hT/-hi` when running your application.
 
 ## Eventlog Basics
 
-The eventlog is a file produce by the RTS which logs specific events as they
+The eventlog is a file produced by the RTS which logs specific events as they
 happen in the RTS.
 
 In order to use the eventlog:
 
-1. Link your application with `-eventlog`
+1. Compile your application with `-eventlog`
 2. Run your application with `+RTS -l`.
 
 The result will be a file called \<executable\>.eventlog which contains information about
@@ -236,19 +236,23 @@ too low and will cause your program to take a long time to complete. You can inc
 profiling interval by passing the `-i` flag. I find setting the interval to 1s is a
 good compromise between an informative profile and a speedy finish.
 
-## Profiling by closure type
+## Profiling by closure type (`-hT`)
 
 Profiling by closure type is a great way to get a high-level overview of
-the heap usage of your program.
-
-Profiling `ghc` compiling the `Cabal` library produces a `ghc.eventlog` file.
-Which can then be converted into a html file using `eventlog2html`.
+the heap usage of your program. In order to generate the closure type profile you
+run your executable with the `-hT` option.
 
 ```
-eventlog2html ghc.eventlog
+my-executable +RTS -hT -l
 ```
 
-The profile can be viewed by opening the [resulting file]().
+The resulting eventlog can then be converted into a html file using `eventlog2html`.
+
+```
+eventlog2html my-executable.eventlog
+```
+
+Example: Profiling ghc building Cabal
 
 #### Interpreting the profile
 
@@ -378,6 +382,8 @@ There are three options for controlling the display of traces on the chart.
     -x SUBSTRING will remove traces which contain a given substring.
 
 If a trace matches both an -i and an -x option then it is included in the chart.
+
+## Profiling by Info Table (`-hi`)
 
 
 ## Summary
