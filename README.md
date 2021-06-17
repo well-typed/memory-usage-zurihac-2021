@@ -75,7 +75,7 @@ memory usage. It's normally useful to start by asking high-level questions:
 
 # Part 1a: Getting going with ghc-debug
 
-ghc-debug is a suite of applications and libraries which allow you to inspect
+[ghc-debug](https://gitlab.haskell.org/ghc/ghc-debug) is a suite of applications and libraries which allow you to inspect
 the heap as a Haskell application from a debugger written in Haskell. The
 heap structure is represented using Haskell datatypes and traversal functions
 written using normal recursive Haskell traversal functions.
@@ -96,7 +96,7 @@ This is critical to be able to traverse stack closures properly.
 
 ![arch](assets/arch.jpg)
 
-## Q: How is ghc-debug different to ghc-heap?
+### Q: How is ghc-debug different to ghc-heap?
 
 ghc-heap is limited to decoding normal closures, it can't traverse stack frames
 and therefore a full heap traversal is not possible. ghc-heap runs in-process and
@@ -104,7 +104,7 @@ the instrumentation can affect the heap structure, for example, if you not caref
 particular values while analysing them can lead to false analysis results.
 
 
-## Architecture of ghc-debug
+## Simple examples with the TUI
 
 To get us thinking a bit more closely about what things on the heap look like,
 we're going to try some simple examples using `ghc-debug-tui`. The examples
@@ -131,25 +131,25 @@ When the TUI starts, the dialog will list the sockets which it has found by look
 in `$XDG_DATA_DIR/ghc-debug/debuggee/`. The socket is opened by the call to `withGhcDebug` in
 `App.hs`.
 
-![](assets/eventlog2html-tui-launch.png)
+![](assets/ghc-debug-tui-launch.png)
 
 After the right socket has been selected, the pause request can be sent to the
 process. The debugger then requests the GC roots for the process and renders them
 in a list.
 
-![](assets/eventlog2html-tui-saved.png)
+![](assets/ghc-debug-tui-saved.png)
 
 At the top of the list you can see the 5 saved objects from the examples.
 Hovering over the first object you can see the source position the thunk arose
 from.
 
-![](assets/eventlog2html-tui-locs.png)
+![](assets/ghc-debug-tui-locs.png)
 
 Looking through the different examples you can tune your expectation about
 how objects are laid out on the heap.
 
 
-![](assets/eventlog2html-tui-expaned.png)
+![](assets/ghc-debug-tui-expaned.png)
 
 ### Summary
 
@@ -315,7 +315,7 @@ the same extent as large bands. For example, your profile might contain contribu
 of ARR_WORDS from many different sources but there's likely to be a correlated
 band further down the profile for `ByteString` or another wrapper type.
 
-** The root cause of memory issues is not usually the biggest band in the profile **
+> The root cause of memory issues is not usually the biggest band in the profile
 
 Another trick is to sort by the "slope" column to find bands which have high slope
 value, these ones are bands which increase steadily over time and might indicate leaks.
