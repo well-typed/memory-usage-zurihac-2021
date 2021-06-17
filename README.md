@@ -322,7 +322,7 @@ value, these ones are bands which increase steadily over time and might indicate
 
 #### The heap pane
 
-The heap pane shows information about memory
+The heap pane shows information about memory:
 
 ![](assets/eventlog2html-heap.png)
 
@@ -358,8 +358,6 @@ the profile or the output is unreadable.
 
 
 #### Filtering markers
-
-There are a few options
 
 There are three options for controlling the display of traces on the chart.
 
