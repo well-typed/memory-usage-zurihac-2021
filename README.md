@@ -206,7 +206,7 @@ The result will be a file called \<executable\>.eventlog which contains informat
 RTS events, such as, how much memory was used, when GC happened, information about
 threads and crucially for us, information about heap profiling samples.
 
-## Aside: What is the profiling way?
+#### Aside: What is the profiling way?
 
 It's maybe a bit confusing that we can perform two modes of heap profiling without
 building with the profiling way. The profiling way is primarily meant to
@@ -224,7 +224,7 @@ too low and will cause your program to take a long time to complete. You can inc
 profiling interval by passing the `-i` flag. I find setting the interval to 1s is a
 good compromise between an informative profile and a speedy finish.
 
-### Profiling by closure type
+## Profiling by closure type
 
 Profiling by closure type is a great way to get a high-level overview of
 the heap usage of your program.
@@ -245,7 +245,7 @@ This highlights bands which have had consistently high memory usage throughout
 the program. There are 4 panes which display the heap profile in slightly different
 ways.
 
-##### Area Chart
+### Area Chart
 
 The area chart is the normal way to view a chart. The x-axis shows elapsed time
 and y-axis shows residency. Each band is stacked on top of the others, by default
@@ -255,7 +255,7 @@ the top 15 bands are showed explicitly and the rest of samples grouped into othe
 
 This view is very similar to the view provided by `hp2ps` and `hp2pretty`.
 
-##### Linechart
+### Linechart
 
 The linechart view shows normalised residency over time. Each residency band
 is normalised to a percentage of the maximum value for that band. Therefore a value
@@ -269,7 +269,7 @@ which fluctuate a lot over time. A band which is slowly increasing is indicative
 of a leak and requires further investigation.
 
 
-#### The detailed pane
+### The detailed pane
 
 A recent addition to `eventlog2html` is the "detailed" pane. This provides
 a summary of each band in the profile.
