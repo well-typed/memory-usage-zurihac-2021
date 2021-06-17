@@ -258,7 +258,7 @@ Example: Profiling ghc building Cabal
 
 The default view of the profile shows the 10 bands with the largest total area.
 This highlights bands which have had consistently high memory usage throughout
-the program. There are 4 panes which display the heap profile in slightly different
+the program. There are six panes which display the heap profile in slightly different
 ways.
 
 ### Area Chart
@@ -268,8 +268,6 @@ and y-axis shows residency. Each band is stacked on top of the others, by defaul
 the top 15 bands are showed explicitly and the rest of samples grouped into other.
 
 ![](assets/eventlog2html-basic2.png)
-
-This view is very similar to the view provided by `hp2ps` and `hp2pretty`.
 
 ### Linechart
 
@@ -384,6 +382,33 @@ There are three options for controlling the display of traces on the chart.
 If a trace matches both an -i and an -x option then it is included in the chart.
 
 ## Profiling by Info Table (`-hi`)
+
+The second profiling mode is info table profiling which is new in
+GHC 9.2. The process of creating and viewing a profile is the same as
+with `-hT`, but the detailed pane is now the most useful as that's the only
+want to get information about about the specific names of the info tables.
+
+The detailed pane now also has some additional fields, as there is more information
+about each info table stored in the eventlog.
+
+<dl>
+  <dt>Profile</dt>
+  <dd>A sparkline chart showing the residency over time</dd>
+  <dt>n</dt>
+  <dd>The "ranking" of the band by the integrated size</dd>
+  <dt>Label</dt>
+  <dd>A human readable label for the band</dd>
+  <dt>Integrated Size</dt>
+  <dd>The total area under the residency graph</dd>
+  <dt>Stddev</dt>
+  <dd>The standard deviation of the samples</dd>
+  <dt>Intercept</dt>
+  <dd>The intercept of the line of best fit calculated by least squares regression</dd>
+  <dt>Slope</dt>
+  <dd>The slope of the line calculated by least sequares regression</dd>
+  <dt>Fit</dt>
+  <dd>How well the regression fits the points</dd>
+</dl>
 
 
 ## Summary
