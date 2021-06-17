@@ -21,6 +21,7 @@ Before the workshop, you should have the following installed:
 * ghc-9.2 (https://downloads.haskell.org/~ghc/9.2.1-alpha2/)
 * cabal-3.6 (https://github.com/haskell/cabal/tree/3.6)
 * eventlog2html-0.9 (`cabal install eventlog2html-0.9`)
+* docker
 
 Or, alternatively, use this `nix` invocation to set-up the environment.
 
@@ -92,6 +93,8 @@ process as your application. Therefore, there are no instrumentation artefacts
 present in the profiles. When a debugger connects to your process, it pauses it
 and therefore the heap won't mutate throughout the run of your debugging script.
 This is critical to be able to traverse stack closures properly.
+
+![arch](assets/arch.jpg)
 
 ## Q: How is ghc-debug different to ghc-heap?
 
