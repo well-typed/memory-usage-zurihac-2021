@@ -131,24 +131,25 @@ When the TUI starts, the dialog will list the sockets which it has found by look
 in `$XDG_DATA_DIR/ghc-debug/debuggee/`. The socket is opened by the call to `withGhcDebug` in
 `App.hs`.
 
-<Screenshot>
+![](assets/eventlog2html-tui-launch.png)
 
 After the right socket has been selected, the pause request can be sent to the
 process. The debugger then requests the GC roots for the process and renders them
 in a list.
 
-<Screenshot>
+![](assets/eventlog2html-tui-saved.png)
 
 At the top of the list you can see the 5 saved objects from the examples.
 Hovering over the first object you can see the source position the thunk arose
 from.
 
-<Screenshot>
+![](assets/eventlog2html-tui-locs.png)
 
 Looking through the different examples you can tune your expectation about
 how objects are laid out on the heap.
 
-<Screenshot>
+
+![](assets/eventlog2html-tui-expaned.png)
 
 ### Summary
 
@@ -162,6 +163,8 @@ If you are trying to debug the memory usage of a large application then
 you can't get stuck into the nitty-gritty straight away, there's too much information.
 You first need to get a high-level overview of what's going on, and that's what
 `eventlog2html` is for.
+
+![](assets/eventlog2html-basic2.png)
 
 ## Heap Profiling
 
@@ -248,7 +251,7 @@ The area chart is the normal way to view a chart. The x-axis shows elapsed time
 and y-axis shows residency. Each band is stacked on top of the others, by default
 the top 15 bands are showed explicitly and the rest of samples grouped into other.
 
-<screenshot>
+![](assets/eventlog2html-basic2.png)
 
 This view is very similar to the view provided by `hp2ps` and `hp2pretty`.
 
@@ -259,7 +262,7 @@ is normalised to a percentage of the maximum value for that band. Therefore a va
 of 1 indicates that at that time point, the residency of that band was the most
 throughout the whole profile run.
 
-<screenshot>
+![](assets/eventlog2html-line.png)
 
 This view can help pick out slowly increasing bands from the noise of bands
 which fluctuate a lot over time. A band which is slowly increasing is indicative
@@ -271,11 +274,11 @@ of a leak and requires further investigation.
 A recent addition to `eventlog2html` is the "detailed" pane. This provides
 a summary of each band in the profile.
 
-<screenshot>
+![](assets/eventlog2html-detailed.png)
 
 What does each band mean in the detailed pane?
 
-<screenshot>
+![](assets/eventlog2html-detailed-row.png)
 
 <dl>
   <dt>Profile</dt>
@@ -321,6 +324,8 @@ value, these ones are bands which increase steadily over time and might indicate
 
 The heap pane shows information about memory
 
+![](assets/eventlog2html-heap.png)
+
 * Live bytes: Green line: Amount of live data (should match top of area pane)
 * Blocks Size: Red line: Total size of allocated blocks
 * Heap Size: Blue Line: Total size of allocated megablocks
@@ -338,6 +343,8 @@ blocks size (red line).
 Markers can also be emitted to the eventlog to mark specific points in the program.
 These markers will also be rendered on the profile so execution time can be
 correlated with human understandable events.
+
+![](assets/eventlog2html-marker.png)
 
 ```
 import Debug.Trace
