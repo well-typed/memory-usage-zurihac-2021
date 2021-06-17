@@ -168,7 +168,7 @@ You first need to get a high-level overview of what's going on, and that's what
 
 ## Heap Profiling
 
-GHC has built-in heap profiling which can be used to obtain a high-level overview
+GHC has a built-in heap profiler which can be used to obtain a high-level overview
 of the memory usage of your program. The heap profiler is a sampling profiler,
 at a predetermined interval the execution of your program is stopped, the profiler
 traverses the whole heap and then reports a summary of what's there depending
@@ -185,9 +185,9 @@ application to be rebuilt in the profiling way. In order to use one of these hea
 profiling modes you just pass `+RTS -hT/-hi` when running your application.
 
 <dl>
-  <dt>Profile by closure type (<pre>-hT</pre>)</dt>
+  <dt>Profile by closure type (<code>-hT</code>)</dt>
   <dd>Each bucket corresponds to a different <a href="https://hackage.haskell.org/package/ghc-heap-9.0.1/docs/GHC-Exts-Heap-ClosureTypes.html"> closure type </a>. This provides a high-level view. </dd>
-  <dt>Profile by info table (<pre>-hi</pre>)</dt>
+  <dt>Profile by info table (<code>-hi</code>)</dt>
   <dd>Each bucket correponds to a distinct info table, each thunk, function, data constructor
       gets it's own info table so this provices very precise information.</dd>
 </dl>
