@@ -186,7 +186,7 @@ profiling modes you just pass `+RTS -hT/-hi` when running your application.
 
 <dl>
   <dt>Profile by closure type (<code>-hT</code>)</dt>
-  <dd>Each bucket corresponds to a different <a href="https://hackage.haskell.org/package/ghc-heap-9.0.1/docs/GHC-Exts-Heap-ClosureTypes.html"> closure type </a>. This provides a high-level view. </dd>
+  <dd>Each bucket corresponds to a different <a href="https://hackage.haskell.org/package/ghc-heap-9.0.1/docs/GHC-Exts-Heap-ClosureTypes.html"> closure type </a>. This provides a high-level view of whether the memory is used by constructors, functions, thunks, stack frames and so on. </dd>
   <dt>Profile by info table (<code>-hi</code>)</dt>
   <dd>Each bucket correponds to a distinct info table, each thunk, function, data constructor
       gets it's own info table so this provices very precise information.</dd>
@@ -202,7 +202,7 @@ In order to use the eventlog:
 1. Link your application with `-eventlog`
 2. Run your application with `+RTS -l`.
 
-The result will be a file called <executable>.eventlog which contains information about
+The result will be a file called \<executable\>.eventlog which contains information about
 RTS events, such as, how much memory was used, when GC happened, information about
 threads and crucially for us, information about heap profiling samples.
 
