@@ -388,27 +388,70 @@ GHC 9.2. The process of creating and viewing a profile is the same as
 with `-hT`, but the detailed pane is now the most useful as that's the only
 want to get information about about the specific names of the info tables.
 
+![](assets/eventlog2html-info-table.png)
+
 The detailed pane now also has some additional fields, as there is more information
-about each info table stored in the eventlog.
+about each info table stored in the eventlog. As well as the statistical information
+there are also source locations and type information about the types of closures.
+
+![](assets/eventlog2html-detailed-info.png)
 
 <dl>
-  <dt>Profile</dt>
-  <dd>A sparkline chart showing the residency over time</dd>
-  <dt>n</dt>
-  <dd>The "ranking" of the band by the integrated size</dd>
-  <dt>Label</dt>
-  <dd>A human readable label for the band</dd>
-  <dt>Integrated Size</dt>
-  <dd>The total area under the residency graph</dd>
-  <dt>Stddev</dt>
-  <dd>The standard deviation of the samples</dd>
-  <dt>Intercept</dt>
-  <dd>The intercept of the line of best fit calculated by least squares regression</dd>
-  <dt>Slope</dt>
-  <dd>The slope of the line calculated by least sequares regression</dd>
-  <dt>Fit</dt>
-  <dd>How well the regression fits the points</dd>
+  <dt>Descrption</dt>
+  <dd>Human-readable description of the info table</dd>
+  <dt>CTy</dt>
+  <dd>The closure type of the info table </dd>
+  <dt>Type</dt>
+  <dd>The Haskell type of the info table</dd>
+  <dt>Module</dt>
+  <dd>The module the info table originated from</dd>
+  <dt>Loc</dt>
+  <dd>An estimated source location the allocation came from, if we have one</dd>
 </dl>
+
+In this detailed pane, the first two bands of allocations arise from constructors.
+Specifically, the `:` and `TyConApp` constructors. A source location is given
+which tracks where in the program this allocation happened, this might not be where
+to fix the issue but gives a good start to understand the memory flow in your program.
+
+The third band of allocation is a bit special, because it comes from the `ARR_WORDS`
+info table, which is hard-coded into the RTS. Therefore there's no precise source location
+for this band.
+
+The fourth band arises from the `IfaceTyCon` constructor, and also has no location
+information. This might be due to a bug in the implementation of `-finfo-table-map`
+or simply that the heuristic couldn't find a source location to attach to
+the info table. Cases such as these deserve investigation.
+
+In total we can see there are about 15000 different info tables used during the
+program, this level of detail lets us get a very precise idea about where and what
+is contributing to allocation.
+
+### Searching
+
+With these extra fields, searching the detailed pane becomes even more useful.
+For example:
+
+* If you think you have an issue with thunks, then filter the `CTy` column by "THUNK" and
+  only thunk closures will be displayed:
+
+  ![](assets/eventlog2html-info-thunks.png)
+
+* If you are interested about residency arising from one module, then you can search by a certain
+  module:
+
+  ![](assets/eventlog2html-info-module.png)
+
+* Searches can be combined together to create more complicated queries.
+
+
+##### Aside: Why do the reported module and location differ?
+
+For some info tables the "Loc" field will not be a location in the same
+module as the "Module" field. This is due to inlining, the "Module" field reports
+information about where the info table originally ended up being created, which may
+not be in the module the source code was written because the definition may have been
+inlined across modules.
 
 
 ## Summary
