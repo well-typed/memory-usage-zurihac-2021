@@ -55,8 +55,8 @@ let
   eventlog2html = import (np.fetchFromGitHub {
     owner = "mpickering";
     repo = "eventlog2html";
-    rev = "0.9.0";
-    sha256 = "1y24md2x4zs1vjahfljgfyvxhpk097s1mjddha4rpcf99f0djd93";
+    rev = "d6abfb5388233929d4d725919d68218a17359951";
+    sha256 = "1dpaqiz9y9p3whyghnnn6b1cws6jlg0lvk11pzz5idg77di5h66r";
   }) {};
 
 
