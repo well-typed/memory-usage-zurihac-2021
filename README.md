@@ -607,7 +607,7 @@ cabal run debugger
 The killer application of ghc-debug is finding out what is retaining specific closures.
 For example, using ghc-debug you can answer questions such as what is the precise
 path from a GC root to a certain closure. This information is usually very informative and by
-reading the path you can understand why something is being retained very easily.
+reading the path you can understand why something is being retained.
 
 ghc-debug-common provides library functions in the [GHC.Debug.Retainers](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Retainers.html) module
 which are useful for computing retainer paths.
@@ -657,13 +657,22 @@ findRetainers :: Maybe Int
 `findRetainers` starts traversing the heap from the given set of roots. At each
 closure it encounters the predicate function is applied, if the predicate is
 true then the path to that closure is returned.
-When also passed a limit, the function will stop after finding |k|
+When also passed a limit, the function will stop after finding k
 closures matching the predicate.
 
 
 The `go` function is the predicate function which is applied  on each closure on the heap.
 It checks to see if the closure in question is a constructor closure and whether the
-name of the constructor matches `Foo`.
+name of the constructor matches `TyConApp`.
+
+```
+    go cp sc =
+      case noSize sc of
+        ConstrClosure _ ps _ cd -> do
+          ConstrDesc _ _  cname <- dereferenceConDesc cd
+          return $ cname == "TyConApp"
+        _ -> return $ False
+```
 
 Once the retainer stack is returned, it's useful to first call the `addLocationToStack`
 function, which annotates the stack with source locations, the annotated stack can then
@@ -708,10 +717,12 @@ is an `IdInfo` field which has thunk of type Unfolding which retains a … and s
 on. This information can be verbose but very useful. You need to look at the
 source positions and program in order to understand what is going on and
 whether it is good or bad. Randomly forcing thunks is likely to get you
-nowhere. We didn’t write ghc-debug to get people to randomly insert ! patterns
-- you can now be precise.
+nowhere. We didn’t write ghc-debug to get people to randomly insert bang patterns -- you can now be precise.
 
 # Exercise: Using ghc-debug on the example application
+
+Now we are going to use ghc-debug on the example application which we profiled before
+using heap profiling.
 
 First we'll just get things set-up, instrument the application and test it with
 the example debugger script.
@@ -749,7 +760,7 @@ Documentation for some common analysis modes is in [ghc-debug-client](https://ha
 | [GHC.Debug.Snapshot](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Snapshot.html) | Create a snapshot so analysis can be performed without a running process |
 | [GHC.Debug.TypePointsFrom](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-TypePointsFrom.html) | Create a "type points from" census in the style of [Cork](https://dl.acm.org/doi/10.1145/1190216.1190224) |
 
-# Extension: Snapshots
+## Extension: Snapshots
 
 There are two modes which ghc-debug can be used. The first mode connects to a
 running process over a socket and then queries information from the heap of the
@@ -769,7 +780,7 @@ There are two advantages of taking a snapshot:
 The recommended way to use ghc-debug is to take a snapshot by connecting to
 the process and then performing further analysis on the snapshot.
 
-## Taking Snapshots
+### Taking Snapshots
 
 Functions to do with snapshotting can be found in `GHC.Debug.Snapshot`.
 The easiest way to take a snapshot is to use the precanned `makeSnapshot` function.
@@ -792,7 +803,7 @@ main = snapshotRun "/tmp/ghc-debug-cache" p41c
 The `/tmp/ghc-debug-cache` snapshot which we just saved will be loaded and
 the `p41c` program will be executed on the snapshot.
 
-## Size of Snapshots
+### Size of Snapshots
 
 Snapshots are quite large but only a small order of magnitude larger than the
 approximate memory footprint of the program. The size is bloated a bit at the moment
@@ -801,6 +812,7 @@ In future the size of snapshots might be optimised to only include reachable blo
 
 # Part 3b: Using ghc-debug/eventlog2html on your own application
 
-In this section you can do what you want and are welcome to try ghc-debug or eventlog2html on
-your own application where we can help you debug any issues.
+Now you have all the tools to profile an application, it's time to try it out
+on your own! Feel free to ask for help in #ghc or on the issue tracker if there
+are any issues you run into.
 
