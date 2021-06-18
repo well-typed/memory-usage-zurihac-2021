@@ -108,7 +108,7 @@ This is critical to be able to traverse stack closures properly.
 
 ![arch](assets/arch.jpg)
 
-### Q: How is ghc-debug different to ghc-heap?
+#### Q: How is ghc-debug different to ghc-heap?
 
 ghc-heap is limited to decoding normal closures, it can't traverse stack frames
 and therefore a full heap traversal is not possible. ghc-heap runs in-process and
@@ -506,27 +506,6 @@ cabal run exe -- args for exe here
 Q: Why is my profile truncated.
 
 The eventlog output is buffered, stop the server before rendering the profile.
-There is also a new option `--eventlog-flush-interval=1`, which can be used to flush
-the eventlog at a certain interval in seconds.
-
-
-
-
-
-
-
-* Demonstrating using eventlog2html on an example, profiling building (Cabal).
-* Explain the build options which are needed to build with eventlog enabled.
-* Explain the two different profiling modes `-hT` and `-hi`.
-* Explain the user interface of eventlog2html
-  - Area vs Linechart views
-  - Heap view
-  - Detailed View
-* Discussion about Detailed View, examples of searching
-* Compare and constrast `-hT` and `-hi` mode. High-level vs detailed
-
-* (Interactive) Use eventlog2html on the sample application
-* What do we observe?
 
 # Part 3a: Using ghc-debug on a bigger application
 
@@ -535,11 +514,24 @@ formulated a precise question to ask. The normal way to use ghc-debug is
 to write a little debugger script using the library functions which summarises
 the heap in a domain-specific way.
 
+There are four libraries which are part of the `ghc-debug` family.
+
+
+| Package  | Description |
+| ------------- | ------------- |
+| [ghc-debug-stub](https://hackage.haskell.org/package/ghc-debug-stub)       | Functions needed for instrumenting your application. |
+| [ghc-debug-common](https://hackage.haskell.org/package/ghc-debug-common)     | The low-level API for connecting, issuing requests and decoding responses. |
+| [ghc-debug-client](https://hackage.haskell.org/package/ghc-debug-client)     | High-level traversal functions implemented using ghc-debug-common. These are the functions you want to use to write your debugging scripts. |
+| [ghc-debug-convention](https://hackage.haskell.org/package/ghc-debug-convention) | Conventions which `ghc-debug-stub` and `ghc-debug-common` adhere to. For example, where to place the created socket. |
+
+
+
+
 
 ## Instrumenting an application for ghc-debug
 
 Instrumenting an application so it be controlled by a debugger is easy.
-The `GHC.Debug.Stub` module exports the `withGhcDebug` wrapper which opens
+The `GHC.Debug.Stub` module from `ghc-debug-stub` exports the `withGhcDebug` wrapper which opens
 the socket.
 
 ```
@@ -798,11 +790,8 @@ approximate memory footprint of the program. The size is bloated a bit at the mo
 as even unreachable blocks are included in the snapshot.
 In future the size of snapshots might be optimised to only include reachable blocks.
 
-
-
 # Part 3b: Using ghc-debug/eventlog2html on your own application
 
 In this section you can do what you want and are welcome to try ghc-debug or eventlog2html on
 your own application where we can help you debug any issues.
-
 
