@@ -75,11 +75,12 @@ memory usage. It's normally useful to start by asking high-level questions:
 These are questions that tools like `eventlog2html` can answer.
 
 After asking a high-level question, and getting an idea where the problem is,
-you can start asking low-level questions in order to properly
+you can start asking low-level questions in order to work out the precise reason
+for your issue. For example:
 
 * What is retaining a specific part of memory which is leaking?
 * What's the structure of the objects which are contributing a lot to residency?
-* How does the memory usage differ between these two points in my program?
+* How does the memory usage differ between two points in my program?
 * What source position contributes the most to allocation in the program?
 
 These low-level questions are ones which are hard to answer with `eventlog2html`
@@ -90,20 +91,20 @@ but easy to answer with `ghc-debug`. A mastery of both tools can lead to enlight
 [ghc-debug](https://gitlab.haskell.org/ghc/ghc-debug) is a suite of applications and libraries which allow you to inspect
 the heap as a Haskell application from a debugger written in Haskell. The
 heap structure is represented using Haskell datatypes and traversal functions
-written using normal recursive Haskell traversal functions.
+are written as normal Haskell functions.
 
 Debugging an application has two parts:
 
 1. Instrument the `main` function of your application using a simple wrapper.
    When the program starts a socket will be created, which a debugger can
-   connect to and query information about the heap.
+   connect to and query information about the heap of your program.
 2. Write a debugging script which connects to the opened socket, and queries
    and analyses information about the heap.
 
 A key design principle of ghc-debug is that the debugger doesn't run in the same
 process as your application. Therefore, there are no instrumentation artefacts
-present in the profiles. When a debugger connects to your process, it pauses it
-and therefore the heap won't mutate throughout the run of your debugging script.
+present in the profiles. When a debugger connects to your process, it must first pause
+the process, and then the heap won't mutate throughout the run of your debugging script.
 This is critical to be able to traverse stack closures properly.
 
 ![arch](assets/arch.jpg)
@@ -118,7 +119,7 @@ particular values while analysing them can lead to false analysis results.
 
 ## Simple examples with the TUI
 
-To get us thinking a bit more closely about what things on the heap look like,
+To get us thinking a bit more closely about what values on the heap look like,
 we're going to try some simple examples using `ghc-debug-tui`. The examples
 should help test some of your intuitions about how simple Haskell values are
 represented on the heap.
@@ -145,14 +146,14 @@ in `$XDG_DATA_DIR/ghc-debug/debuggee/`. The socket is opened by the call to `wit
 
 ![](assets/ghc-debug-tui-launch.png)
 
-After the right socket has been selected, the pause request can be sent to the
+After the right socket has been selected, the pause request is sent to the
 process. The debugger then requests the GC roots for the process and renders them
 in a list.
 
 ![](assets/ghc-debug-tui-saved.png)
 
 At the top of the list you can see the saved objects from the examples.
-Hovering over the first object you can see the source position the thunk arose
+Hovering over the first object you can see in the top pane the source position the thunk arose
 from.
 
 ![](assets/ghc-debug-tui-locs.png)
@@ -160,12 +161,11 @@ from.
 Looking through the different examples you can tune your expectation about
 how objects are laid out on the heap.
 
-
 ![](assets/ghc-debug-tui-expaned.png)
 
 ### Summary
 
-At the moment the TUI is more of an exploratory toy than a serious debugging application.
+At the moment the TUI is more of an exploratory toy than a serious debugger.
 For serious debugging you should write your own debugging scripts, which we will
 get onto later.
 
@@ -198,25 +198,11 @@ profiling modes you just pass `+RTS -hT/-hi` when running your application.
 
 <dl>
   <dt>Profile by closure type (<code>-hT</code>)</dt>
-  <dd>Each bucket corresponds to a different <a href="https://hackage.haskell.org/package/ghc-heap-9.0.1/docs/GHC-Exts-Heap-ClosureTypes.html"> closure type </a>. This provides a high-level view of whether the memory is used by constructors, functions, thunks, stack frames and so on. </dd>
+  <dd>Each bucket corresponds to a different <a href="https://hackage.haskell.org/package/ghc-heap-9.0.1/docs/GHC-Exts-Heap-ClosureTypes.html"> closure type</a>. This provides a high-level view of whether the memory is used by constructors, functions, thunks, stack frames and so on. </dd>
   <dt>Profile by info table (<code>-hi</code>)</dt>
   <dd>Each bucket correponds to a distinct info table, each thunk, function, data constructor
-      gets it's own info table so this provices very precise information.</dd>
+      gets it's own info table so this provices very precise information. This mode is new in 9.2.</dd>
 </dl>
-
-## Eventlog Basics
-
-The eventlog is a file produced by the RTS which logs specific events as they
-happen in the RTS.
-
-In order to use the eventlog:
-
-1. Compile your application with `-eventlog`
-2. Run your application with `+RTS -l`.
-
-The result will be a file called \<executable\>.eventlog which contains information about
-RTS events, such as, how much memory was used, when GC happened, information about
-threads and crucially for us, information about heap profiling samples.
 
 #### Aside: What is the profiling way?
 
@@ -236,11 +222,27 @@ too low and will cause your program to take a long time to complete. You can inc
 profiling interval by passing the `-i` flag. I find setting the interval to 1s is a
 good compromise between an informative profile and a speedy finish.
 
+## Eventlog Basics
+
+The eventlog is a file produced by the RTS which provides information about events
+happening in the runtime.
+
+In order to use the eventlog:
+
+1. Compile your application with `-eventlog`
+2. Run your application with `+RTS -l`.
+
+The result will be a file called \<executable\>.eventlog which contains information about
+RTS events, such as, how much memory was used, when GC happened, information about
+threads and crucially for us, information about heap profiling samples.
+
+
 ## Profiling by closure type (`-hT`)
 
 Profiling by closure type is a great way to get a high-level overview of
 the heap usage of your program. In order to generate the closure type profile you
-run your executable with the `-hT` option.
+run your executable with the `-hT` option. The `-l` option is used in addition, to
+generate the eventlog.
 
 ```
 my-executable +RTS -hT -l
@@ -252,22 +254,20 @@ The resulting eventlog can then be converted into a html file using `eventlog2ht
 eventlog2html my-executable.eventlog
 ```
 
-Example: Profiling ghc building Cabal
-
-#### Interpreting the profile
-
-The default view of the profile shows the 10 bands with the largest total area.
-This highlights bands which have had consistently high memory usage throughout
-the program. There are six panes which display the heap profile in slightly different
-ways.
+The resulting file will be `my-executable.eventlog.html`, this contains six different
+panes for visualising the result of the heap profile.
 
 ### Area Chart
 
-The area chart is the normal way to view a chart. The x-axis shows elapsed time
+The area chart is the default visualisation of the heap samples. The x-axis shows elapsed time
 and y-axis shows residency. Each band is stacked on top of the others, by default
 the top 15 bands are showed explicitly and the rest of samples grouped into other.
 
 ![](assets/eventlog2html-basic2.png)
+
+The default view of the profile shows the 15 bands with the largest total area.
+This highlights bands which have consistently high memory usage throughout
+the program.
 
 ### Linechart
 
@@ -317,7 +317,8 @@ What does each band mean in the detailed pane?
 The detailed pane is useful for several reasons.
 
 1. You can easily identify each band of residency and consider it in turn.
-2. You can see sources of residency which are too small to appear
+2. You can see sources of residency which are too small to appear in one of
+   the stacked views.
 3. You can search the bands to find specific sources of interest. For example,
    the allocations from a certain constructor.
 4. Patterns between different bands can be identified by eye.
@@ -347,7 +348,9 @@ The heap pane shows information about memory:
 OS memory usage corresponds roughly to the heap size, and the size of the nursery
 is approximatey the difference between the red and blue lines.
 
-This view can also be useful in identifying back fragmentation situations. A
+For understanding the relationship between blocks size and live bytes, this [blog post](https://www.well-typed.com/blog/2021/03/memory-return/) contains more information.
+
+This view can also be useful in identifying fragmentation. A
 very badly fragmented heap will have low live bytes (green) bit much higher
 blocks size (red line).
 
@@ -530,11 +533,10 @@ There are four libraries which are part of the `ghc-debug` family.
 
 ## Instrumenting an application for ghc-debug
 
-Instrumenting an application so it be controlled by a debugger is easy.
-The `GHC.Debug.Stub` module from `ghc-debug-stub` exports the `withGhcDebug` wrapper which opens
-the socket.
+The `GHC.Debug.Stub` module from `ghc-debug-stub` exports the `withGhcDebug` function
+which can be used to wrap an application to allow it to be controlled by a debugger.
 
-```
+```haskell
 import GHC.Debug.Stub
 
 -- withGhcDebug :: IO a -> IO a
@@ -543,10 +545,10 @@ main = withGhcDebug $ do ...
 ```
 
 Now when the application is started, a socket will be opened which can be connected
-to by a debugger.
+to by a debugger. Once the debugger is connected, the instrumented process can be paused
+and its heap inspected.
 
-NOTE: The `GHC_DEBUG_SOCKET` variable controls the socket which the debuggee
-creates the socket on.
+The `GHC_DEBUG_SOCKET` environment variable controls where the socket is created.
 
 ## Writing a Debugger
 
@@ -586,7 +588,7 @@ heap and reports how many closures there are live on the heap.
    First the `gcRoots :: DebugM [ClosurePtr]` are requested.
 3. The `count :: [ClosurePtr] -> DebugM CensusStats` function is a built-in traversal which counts the number and size of
    reachable closures.
-4. The `run :: Debuggee -> DebugM a -> IO a` function executates the analysis.
+4. The `run :: Debuggee -> DebugM a -> IO a` function executes the analysis.
 5. The analysed program is then resumed `resume :: Debuggee -> IO ()`.
 6. Before finally the result of the census is printed.
 
@@ -596,25 +598,6 @@ The debugger can be run with:
 cabal run debugger
 ```
 
-### Haskell Representation
-
-Closures are represented as a Haskell data type called [`DebugClosure`](https://hackage.haskell.org/package/ghc-debug-common-0.1.0.0/docs/GHC-Debug-Types-Closures.html#t:DebugClosure).
-There's a constructor for each of the different closure types, traversals of
-the heap can be written as normal Haskell functions in terms of the `DebugClosure`
-data type!
-
-### Analysis Scripts
-
-Documentation for some common analysis modes is in [ghc-debug-client](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0)
-
-| Module  | Description |
-| ------------- | ------------- |
-| [GHC.Debug.GML](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-GML.html)  | Export a heap graph to the GML format for further analysis. |
-| [GHC.Debug.ObjectEquiv](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-ObjectEquiv.html)  |  Attempt to find identical closures which could be shared to save space  |
-| [GHC.Debug.Profile](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Profile.html)  |  Functions for performing whole heap census in the style of the normal -hT heap profiling |
-| [GHC.Debug.Retainers](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Retainers.html)  |  Functions for finding out what is retaining a specific closure |
-| [GHC.Debug.Snapshot](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Snapshot.html) | Create a snapshot so analysis can be performed without a running process |
-| [GHC.Debug.TypePointsFrom](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-TypePointsFrom.html) | Create a "type points from" census in the style of [Cork](https://dl.acm.org/doi/10.1145/1190216.1190224) |
 
 ## Finding Retainers
 
@@ -622,6 +605,9 @@ The killer application of ghc-debug is finding out what is retaining specific cl
 For example, using ghc-debug you can answer questions such as what is the precise
 path from a GC root to a certain closure. This information is usually very informative and by
 reading the path you can understand why something is being retained very easily.
+
+ghc-debug-common provides library functions in the [GHC.Debug.Retainers](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Retainers.html) module
+which are useful for computing retainer paths.
 
 As with most analysis modes in ghc-debug, there is a familar pattern to the analysis.
 
@@ -631,7 +617,7 @@ As with most analysis modes in ghc-debug, there is a familar pattern to the anal
 4. Render the information to the user.
 
 Here is a sample analysis script for finding retainers of a constructor called
-"Foo":
+`TyConApp`:
 
 ```
 retainers :: Debuggee -> IO ()
@@ -739,6 +725,26 @@ retaining the leak.
 5. Check with eventlog2html that the leak is actually fixed.
 
 The profile should be quite flat if you have fixed the leak correctly.
+
+### Custom Traversals
+
+Closures are represented as a Haskell data type called [`DebugClosure`](https://hackage.haskell.org/package/ghc-debug-common-0.1.0.0/docs/GHC-Debug-Types-Closures.html#t:DebugClosure).
+There's a constructor for each of the different closure types, traversals of
+the heap can be written as normal Haskell functions in terms of the `DebugClosure`
+data type!
+
+### Analysis Scripts
+
+Documentation for some common analysis modes is in [ghc-debug-client](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0)
+
+| Module  | Description |
+| ------------- | ------------- |
+| [GHC.Debug.GML](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-GML.html)  | Export a heap graph to the GML format for further analysis. |
+| [GHC.Debug.ObjectEquiv](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-ObjectEquiv.html)  |  Attempt to find identical closures which could be shared to save space  |
+| [GHC.Debug.Profile](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Profile.html)  |  Functions for performing whole heap census in the style of the normal -hT heap profiling |
+| [GHC.Debug.Retainers](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Retainers.html)  |  Functions for finding out what is retaining a specific closure |
+| [GHC.Debug.Snapshot](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-Snapshot.html) | Create a snapshot so analysis can be performed without a running process |
+| [GHC.Debug.TypePointsFrom](https://hackage.haskell.org/package/ghc-debug-client-0.1.0.0/docs/GHC-Debug-TypePointsFrom.html) | Create a "type points from" census in the style of [Cork](https://dl.acm.org/doi/10.1145/1190216.1190224) |
 
 # Extension: Snapshots
 
