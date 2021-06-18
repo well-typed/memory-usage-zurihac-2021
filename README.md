@@ -1,5 +1,6 @@
 # Introduction
 
+
 This workshop will introduce two tools for profiling Haskell programs, [eventlog2html](https://mpickering.github.io/eventlog2html/)
 and [ghc-debug](https://gitlab.haskell.org/ghc/ghc-debug). These form a family of new heap profiling tools which use
 the new [info table location](https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/) feature in GHC 9.2. The info table locations allow a debugger to very precisely map
@@ -363,7 +364,7 @@ correlated with human understandable events.
 
 ![](assets/eventlog2html-marker.png)
 
-```
+```haskell
 import Debug.Trace
 
 traceMarkerIO :: String -> IO ()
@@ -389,7 +390,8 @@ If a trace matches both an -i and an -x option then it is included in the chart.
 The second profiling mode is info table profiling which is new in
 GHC 9.2. The process of creating and viewing a profile is the same as
 with `-hT`, but the detailed pane is now the most useful as that's the only
-want to get information about about the specific names of the info tables.
+way to get information about about the specific names of the info tables.
+In the stacked view, the index of each band is the address of the info table.
 
 ![](assets/eventlog2html-info-table.png)
 
@@ -398,6 +400,8 @@ about each info table stored in the eventlog. As well as the statistical informa
 there are also source locations and type information about the types of closures.
 
 ![](assets/eventlog2html-detailed-info.png)
+
+The new fields are:
 
 <dl>
   <dt>Descrption</dt>
@@ -452,7 +456,7 @@ For example:
 
 For some info tables the "Loc" field will not be a location in the same
 module as the "Module" field. This is due to inlining, the "Module" field reports
-information about where the info table originally ended up being created, which may
+information about where the info table was created, which may
 not be in the module the source code was written because the definition may have been
 inlined across modules.
 
@@ -485,19 +489,19 @@ There are three scripts to interact with the example application.
 ./run
 ```
 
-The exercise is to profile the application. Keep reading if you need more help!
+The exercise is to profile the application using eventlog2html. Keep reading if you need more help!
 
 
 ### Troubleshooting
 
-Q: How do I enable profiling?
+##### How do I enable profiling?
 
 1. Add `-eventlog` to the `ghc-options` of the cabal file
 2. Modify the `./run_server` script to pass the relevant profiling options.
 3. Run the server, the eventlog will be produced at `realworld.eventlog`
 4. Visualise the eventlog with `eventlog2html`, what do you see?
 
-Q: Passing options to an executable with `cabal run`
+##### Passing options to an executable with `cabal run`
 
 Options can be passed to an executable invoked by `cabal run` by specifying the
 arguments after `--`.
@@ -506,7 +510,7 @@ arguments after `--`.
 cabal run exe -- args for exe here
 ```
 
-Q: Why is my profile truncated.
+##### Why is my profile truncated.
 
 The eventlog output is buffered, stop the server before rendering the profile.
 
@@ -527,13 +531,12 @@ There are four libraries which are part of the `ghc-debug` family.
 | [ghc-debug-client](https://hackage.haskell.org/package/ghc-debug-client)     | High-level traversal functions implemented using ghc-debug-common. These are the functions you want to use to write your debugging scripts. |
 | [ghc-debug-convention](https://hackage.haskell.org/package/ghc-debug-convention) | Conventions which `ghc-debug-stub` and `ghc-debug-common` adhere to. For example, where to place the created socket. |
 
-
-
-
+Your application is instrumented with functions from ghc-debug-stub and we write
+analysis scripts with functions from ghc-debug-client.
 
 ## Instrumenting an application for ghc-debug
 
-The `GHC.Debug.Stub` module from `ghc-debug-stub` exports the `withGhcDebug` function
+The `GHC.Debug.Stub` module from ghc-debug-stub exports the `withGhcDebug` function
 which can be used to wrap an application to allow it to be controlled by a debugger.
 
 ```haskell
@@ -559,7 +562,7 @@ they can be used to perform a complete heap traversal.
 
 There is a simple debugger in `debugger/`.
 
-```
+```haskell
 {-# LANGUAGE TupleSections #-}
 module Main where
 
@@ -619,7 +622,7 @@ As with most analysis modes in ghc-debug, there is a familar pattern to the anal
 Here is a sample analysis script for finding retainers of a constructor called
 `TyConApp`:
 
-```
+```haskell
 retainers :: Debuggee -> IO ()
 retainers e = do
   pause e
@@ -644,7 +647,7 @@ tyConApp rroots = findRetainers (Just 100) rroots go
 The script follows the same structure as the previous ghc-debug program. Now instead
 of calling `count` the `tyConApp` function calls the library function `findRetainers`.
 
-```
+```haskell
 findRetainers :: Maybe Int
               -> [ClosurePtr]
               -> (ClosurePtr -> SizedClosure -> DebugM Bool)
@@ -666,7 +669,7 @@ Once the retainer stack is returned, it's useful to first call the `addLocationT
 function, which annotates the stack with source locations, the annotated stack can then
 be printed by the `displayRetainerStack` function.
 
-```
+```haskell
 addLocationToStack :: [ClosurePtr] -> DebugM [(SizedClosureC, Maybe SourceInformation)]
 displayRetainerStack :: [(String, [(SizedClosureC, Maybe SourceInformation)])] -> IO ()
 ```
@@ -771,7 +774,7 @@ the process and then performing further analysis on the snapshot.
 Functions to do with snapshotting can be found in `GHC.Debug.Snapshot`.
 The easiest way to take a snapshot is to use the precanned `makeSnapshot` function.
 
-```
+```haskell
 main = withDebuggeeConnect "/tmp/ghc-debug" (\e -> makeSnapshot e "/tmp/ghc-debug-cache)
 ```
 
@@ -782,7 +785,7 @@ the snapshot to `/tmp/ghc-debug-cache`. Simple.
 
 A `Debuggee` can be created from a snapshot by using the `snapshotRun` function.
 
-```
+```haskell
 main = snapshotRun "/tmp/ghc-debug-cache" p41c
 ```
 
