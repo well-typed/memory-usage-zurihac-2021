@@ -76,6 +76,7 @@ in
                                np2.pkg-config
                                np2.graphviz
                                eventlog2html.eventlog2html
+                               np2.jq
 
                                np2.gmp
                                np2.gmp.dev
