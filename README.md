@@ -1,7 +1,7 @@
 # Introduction
 
-This workshop will introduce two tools for profiling Haskell programs, eventlog2html
-and ghc-debug. These form a family of new heap profiling tools which use
+This workshop will introduce two tools for profiling Haskell programs, [eventlog2html](https://mpickering.github.io/eventlog2html/)
+and [ghc-debug](https://gitlab.haskell.org/ghc/ghc-debug). These form a family of new heap profiling tools which use
 the new [info table location](https://well-typed.com/blog/2021/01/first-look-at-hi-profiling-mode/) feature in GHC 9.2. The info table locations allow a debugger to very precisely map
 a source of allocation to a place in the source program. This gives much more detailed
 and actionable profiling output.
@@ -13,7 +13,7 @@ No advanced knowledge of language features is necessary, but you shouldn't
 be afraid of internal implementation details. It is also a bit fiddly to set-up the
 correct environment.
 
-# Pre-tutorial
+# Pre-workshop
 
 Before the workshop, you should have the following installed:
 
