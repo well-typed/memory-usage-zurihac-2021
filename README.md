@@ -229,6 +229,9 @@ for a much better story for leak identification:
    produce an auxiliary data structure which allows distinct info tables to be
    mapped back to source locations
 
+With these three features we can gather a profile of a program's allocations
+(both of constructors and thunks) broken down by allocation site, with source
+location.
 
 # Part 1a: Getting going with ghc-debug
 
@@ -471,7 +474,7 @@ Something I regularly do is go to the detailed pane, and click through each
 page looking to see if there are common patterns. Once getting to the smaller bands
 this can be particularlly useful because small bands are often not polluted to
 the same extent as large bands. For example, your profile might contain contribution
-of ARR_WORDS from many different sources but there's likely to be a correlated
+of `ARR_WORDS` from many different sources but there's likely to be a correlated
 band further down the profile for `ByteString` or another wrapper type.
 
 > The root cause of memory issues is not usually the biggest band in the profile
@@ -653,7 +656,7 @@ arguments after `--`.
 cabal run exe -- args for exe here
 ```
 
-##### Why is my profile truncated.
+##### Why is my profile truncated?
 
 The eventlog output is buffered, stop the server before rendering the profile.
 
