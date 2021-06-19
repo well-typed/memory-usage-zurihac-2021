@@ -35,6 +35,15 @@ Or, alternatively, use this `nix` invocation to set-up the environment.
 nix-shell
 ```
 
+Configuring the [`haskell.nix` caches](https://input-output-hk.github.io/haskell.nix/tutorials/getting-started/) will save you some build time (or you can remove the `eventlog2html` entry from the `shell.nix` file and install another way).
+
+Then then the `./prepare` script to pre-build all the required local
+executables.
+
+```
+./prepare
+```
+
 # Part 1: Introduction to RTS and ghc-debug
 
 In order to effectively profile a Haskell application it's very useful to have a mental
