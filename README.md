@@ -140,17 +140,31 @@ are overwhelmingly the most common:
 
 In GHC's storage model, stacks are just another type of heap object.
 
-```haskell
-f :: Int -> Int
 
-x, y :: Int
-x = I# 42#
-y = f x
+## What are profiling tools?
 
-z =
-  case y of
-    I# n -> expr
-```
+Heap profiling tools allow you to answer questions about live memory on the heap.
+With a heap profiling tool you can understand both high and low-level questions about
+memory usage. It's normally useful to start by asking high-level questions:
+
+* Is the memory usage of my application increasing over time?
+* Are there any particuar source of allocations or closure types which account
+  for a high percentage of residency?
+* Are there any obvious memory usage spikes visible in the profile?
+
+These are questions that tools like `eventlog2html` can answer.
+
+After asking a high-level question, and getting an idea where the problem is,
+you can start asking low-level questions in order to work out the precise reason
+for your issue. For example:
+
+* What is retaining a specific part of memory which is leaking?
+* What's the structure of the objects which are contributing a lot to residency?
+* How does the memory usage differ between two points in my program?
+* What source position contributes the most to allocation in the program?
+
+These low-level questions are ones which are hard to answer with `eventlog2html`
+but easy to answer with `ghc-debug`. A mastery of both tools can lead to enlightenment.
 
 
 ## Traditional cost-centre profiling
@@ -184,37 +198,28 @@ profiling at the expense of code size.
 
 Consider a classic thunk leak like:
 ```haskell
-accumSum :: Ord a => [(a, Int)] -> Map a Int
-sumAssocList xs = Data.Map.Lazy.fromListWith (+) xs
+sumAssocs :: Ord a => [(a, Int)] -> Map a Int
+sumAssocs xs = Data.Map.Lazy.fromListWith (+) xs
 ```
+If buried in a large program, locating such a leak with the traditional
+cost-centre profiling tools can be challenging:
 
+ * `-hy` identifies the leak unhelpfully as type `*`
+ * `-hd` identifies the leak as a GHC-generated name, `<Main.sat_s2hF>`.
+ * `-hc` can provide a more useful source location assuming one has added
+   appropriate cost-centres
 
+Info table profiling introduces three GHC features which collectively provide
+for a much better story for leak identification:
 
+ * a new profiling breakdown mode, `-hi`, which collates heap allocations by
+   their info table identity.
+ * a new GHC flag, `-fdistinct-constructor-tables`, which tells the code
+   generator to produce a distinct info table for each constructor allocation
+ * another GHC flag, `-finfo-table-map`, which tells the code generator to
+   produce an auxiliary data structure which allows distinct info tables to be
+   mapped back to source locations
 
-## What are profiling tools?
-
-Heap profiling tools allow you to answer questions about live memory on the heap.
-With a heap profiling tool you can understand both high and low-level questions about
-memory usage. It's normally useful to start by asking high-level questions:
-
-* Is the memory usage of my application increasing over time?
-* Are there any particuar source of allocations or closure types which account
-  for a high percentage of residency?
-* Are there any obvious memory usage spikes visible in the profile?
-
-These are questions that tools like `eventlog2html` can answer.
-
-After asking a high-level question, and getting an idea where the problem is,
-you can start asking low-level questions in order to work out the precise reason
-for your issue. For example:
-
-* What is retaining a specific part of memory which is leaking?
-* What's the structure of the objects which are contributing a lot to residency?
-* How does the memory usage differ between two points in my program?
-* What source position contributes the most to allocation in the program?
-
-These low-level questions are ones which are hard to answer with `eventlog2html`
-but easy to answer with `ghc-debug`. A mastery of both tools can lead to enlightenment.
 
 # Part 1a: Getting going with ghc-debug
 
