@@ -1,3 +1,8 @@
+---
+title: Introduction to `ghc-debug`
+author: Matthew Pickering and Ben Gamari
+---
+
 # Introduction
 
 
@@ -40,27 +45,151 @@ be very tricky.
 
 ## Generational Scheme
 
-Nursery -> Gen0 -> Gen1
+As Haskell programs tend to produce a significant quantity of garbage heap allocations
+during execution. However, most of these allocations tend to be very
+short-lived. To take advantage of this property, GHC's garbage collector is of
+a *generational* design.
+
+In a generational garbage collector, the heap is partitioned into a small
+number of sequential "generations". Heap allocations begin life in the
+generation 0 (also known as the *nursery*). When the nursery fills, a
+generation 0 garbage collection is initiated; here the contents of the nursery
+is traversed and all live objects moved ("promoted") into generation 1.
+
+When generation 1 fills, a generation 1 collection is performed, causing the
+traversal and promotion of live objects in generations 0 and 1. Note how we
+needn't traverse any *older* generations than the generation we are collecting;
+this means that generation 0 collections, which are by far the most common,
+only need to walk a small fraction of the heap. Moreover, the collector
+only needs to traverse *live* data, meaning that we pay no GC cost for the
+large amount of transient garbage produced by Haskell evaluation.
+
+As we will see later, understanding this generational structure can be
+important when interpreting heap profiles.
 
 ## Block Structure
+
+GHC's storage manager is built on a *block allocator*.
 
 ## Closure Structure
 
 ### Standard Closure Layout
 
-Most Haskell values are represented in a uniform way.
+All on-heap Haskell values are represented in a uniform way. Specifically, a
+heap object consists of a small header, usually consisting of only an *info
+table pointer*, followed by a number of *fields*. As the name suggests, the
+info table pointer points to a small data structure describing the object's
+kind and memory layout. This metadata, which is static data compiled into the
+executable, includes:
 
-![Heap layout](https://gitlab.haskell.org/ghc/ghc/-/wikis/commentary/rts/storage/heap-object.png)
+ * which kind of object it is (e.g. a data constructor, thunk, function, stack,
+   etc.)
+ * in the case of a data constructor, the name of the constructor
+ * how many fields the object has (that is, its size)
+ * which of those fields are pointers (which must be followed by the garbage
+   collector) and which are non-pointers (e.g. `Int#` fields)
+ * in the case of a thunk, a pointer to the code which must be called to
+   evaluate the thunk
+ * in the case of a function, the number of arguments expected by the
+   function
+
+To see how the heap looks in practice, let's look at a few classes of heap object.
+
+### Data constructor applications
+
+Consider the following bindings:
+
+```haskell
+x = Just y      :: Maybe Int
+y = I# 42#      :: Int
+```
+
+In memory this would look like the following:
+
+![A simplified representation of the Haskell heap.](assets/simple-heap.svg){width=55%}
+
+Here we see that `x` and `y` are data constructor applications, each having a
+pointer to the info table describing their respective data constructor.
+
+### Thunks and partial applications
+
+Thunks and partial function applications are represented similarly to data
+constructor applications, with captured free variables taking the place of the
+constructor fields. For instance, the program
+```haskell
+x = f y y
+y = I# 42#
+```
 
 ### Stack Closures
 
-### A selection of other closure types
+The state of a Haskell's thread's execution is embodied by its execution stack.
+Consequently, stacks constitute one of the major sources of roots during
+garbage collection.
+
+The execution stack encodes the "context" in which evaluation is occurring;
+operationally, it tracks the code to which execution will return once the current
+evaluation has completed.  While there are numerous stack frame varieties, two types
+are overwhelmingly the most common:
+
+ * continuation frames represent the continuation of a `case` analysis; these
+   will look at the returned scrutinee and branch to one of the
+   `case` alternatives depending upon the result.
+ * update frames represent the updating of a thunk; these will overwrite the
+   evaluated thunk with the returned result, before returning.
+
+In GHC's storage model, stacks are just another type of heap object.
+
+```haskell
+f :: Int -> Int
+
+x, y :: Int
+x = I# 42#
+y = f x
+
+z =
+  case y of
+    I# n -> expr
+```
+
+
+## Traditional cost-centre profiling
+
+For many years GHC has had a built-in heap profiler capable of
+measuring dynamic heap behavior of a program broken down by a number of
+categorizations:
+
+ * (approximate) type (`+RTS -hy`, e.g. `Int`, `Maybe String`, `(->)`)
+ * closure description (`+RTS -hd`, e.g. `Just`, `THUNK`)
+ * Lexical scope (`+RTS -hc`, known as "cost-centres")
+
+Of these, the cost-centres break-down method is often the most precise but also
+the most expensive. While GHC offers a variety of automatic strategies (e.g.
+`-fprof-auto`, `-fprof-top`) for automatically annotating programs with
+cost-centres, cost-centres can often interfere with optimisations, skewing
+profile results.
+
+The alternative to automatic annotation is to rather insert cost-centres
+manually. However, this process can be arduous in a large system, requiring
+that the user manually introduce a cost-centre, recompile, collect a profile,
+and refine the observed "hot" cost-centres.
 
 ## Info Table Profiling
 
-* (Ben) Basic heap layout principles, strucutre of closures, what is an info table, what do thunks look like
-* (Ben) Basics of memory usage, difference between blocks allocated, mblocks allocated, live bytes
-* (Ben) Explanation of info table profiling
+As described above, while traditional cost-centre profiling can be quite useful
+for identifying poor memory-usage behavior, using it to pin-point from where in
+a program an allocation arose can be labor intensive. The info table profiling
+mechanism introduced in GHC 9.2 provides a precise alternative to cost-centre
+profiling at the expense of code size.
+
+Consider a classic thunk leak like:
+```haskell
+accumSum :: Ord a => [(a, Int)] -> Map a Int
+sumAssocList xs = Data.Map.Lazy.fromListWith (+) xs
+```
+
+
+
 
 ## What are profiling tools?
 
