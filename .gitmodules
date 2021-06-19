@@ -1,6 +1,6 @@
 [submodule "haskell-scotty-realworld-example-app"]
 	path = haskell-scotty-realworld-example-app
-	url = git@github.com:mpickering/haskell-scotty-realworld-example-app.git
+	url = https://github.com/mpickering/haskell-scotty-realworld-example-app.git
 [submodule "ghc-debug"]
 	path = ghc-debug
-	url = git@gitlab.haskell.org:ghc/ghc-debug.git
+	url = https://gitlab.haskell.org/ghc/ghc-debug.git
