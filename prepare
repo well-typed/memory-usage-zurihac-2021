@@ -1,0 +1,1 @@
+cabal build tui simple debugger realworld-exe

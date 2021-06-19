@@ -30,6 +30,13 @@ Or, alternatively, use this `nix` invocation to set-up the environment.
 nix-shell
 ```
 
+Then then the `./prepare` script to pre-build all the required local
+executables.
+
+```
+./prepare
+```
+
 # Part 1: Introduction to RTS and ghc-debug
 
 In order to effectively profile a Haskell application it's very useful to have a mental
