@@ -78,7 +78,18 @@ important when interpreting heap profiles.
 
 ## Block Structure
 
-GHC's storage manager is built on a *block allocator*.
+GHC's storage manager is built on a *block allocator*, which is responsible for managing
+the virtual address space of the process and providing efficient metadata (e.g.
+to which generation a particular section of memory belongs) lookup to the
+garbage collector. 
+
+The block allocator partitions memory into two granularities. First, memory
+is requested from the operating system on an as-needed basis in 1MByte chunks
+knows as *megablocks*. Each of these megablocks is then split into 4kByte
+chunks known as *blocks*, which serve as the fundamental allocation unit for
+the garbage collector. In particular, the GC allocates a small number of blocks
+to serve as the nursery, into which mutator allocations are allocated in a
+bump-pointer manner.
 
 ## Closure Structure
 
